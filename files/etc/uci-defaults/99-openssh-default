@@ -14,6 +14,19 @@ sed -i '/^[[:space:]]*PermitRootLogin[[:space:]]*/d' "$SSHD_CONFIG"
 echo "PermitRootLogin yes" >> "$SSHD_CONFIG"
 
 
+# 删除已有 PasswordAuthentication 配置
+sed -i '/^[[:space:]]*PasswordAuthentication[[:space:]]*/d' "$SSHD_CONFIG"
+
+# 添加新的配置
+echo "PasswordAuthentication yes" >> "$SSHD_CONFIG"
+
+
+# 删除已有 PermitEmptyPasswords 配置
+sed -i '/^[[:space:]]*PermitEmptyPasswords[[:space:]]*/d' "$SSHD_CONFIG"
+
+# 添加新的配置
+echo "PermitEmptyPasswords yes" >> "$SSHD_CONFIG"
+
 
 
 
