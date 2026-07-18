@@ -324,6 +324,16 @@ jobs:
 
 
 
+    # 日志输出上传路径
+    - name: Show firmware files
+
+      working-directory: ${{ env.OPENWRT_DIR }}
+
+      run: |
+
+        echo "===== firmware output ====="
+
+        find bin/targets -type f
 
 
     ##################################################
@@ -346,7 +356,7 @@ jobs:
         path: |
 
 
-          openwrt-nss-edma/bin/targets/ipq807x/**/*
+          openwrt-nss-edma/bin/targets/**/*
 
 
         retention-days: 30
