@@ -137,6 +137,23 @@ jobs:
 
 
 
+    # 增加缓存
+    - name: Cache OpenWrt build
+
+      uses: actions/cache@v4
+
+      with:
+
+        path: |
+          ${{ env.OPENWRT_DIR }}/dl
+          ${{ env.OPENWRT_DIR }}/staging_dir
+          ${{ env.OPENWRT_DIR }}/build_dir
+
+        key: openwrt-${{ runner.os }}-${{ hashFiles('homewrk-diffconfig', 'files/etc/uci-defaults/*') }}
+
+        restore-keys: |
+          openwrt-${{ runner.os }}-
+
 
 
     ##################################################
@@ -225,7 +242,7 @@ jobs:
 
 
         chmod +x \
-        files/etc/uci-defaults/*
+        $OPENWRT_DIR/files/etc/uci-defaults/*
 
 
 
@@ -320,7 +337,7 @@ jobs:
       run: |
 
 
-        make -j4 V=s
+        make -j$(nproc) V=s
 
 
 
@@ -356,7 +373,15 @@ jobs:
         path: |
 
 
-          openwrt-nss-edma/bin/targets/**/*
+          ${{ env.OPENWRT_DIR }}/bin/targets/**/*sysupgrade*
+          ${{ env.OPENWRT_DIR }}/bin/targets/**/*factory*
+          ${{ env.OPENWRT_DIR }}/bin/targets/**/*sha256*
+          ${{ env.OPENWRT_DIR }}/bin/targets/**/*profiles*
+          ${{ env.OPENWRT_DIR }}/bin/targets/**/*manifest*
+          ${{ env.OPENWRT_DIR }}/bin/targets/**/*buildinfo*
+
+
+        if-no-files-found: warn
 
 
         retention-days: 30
