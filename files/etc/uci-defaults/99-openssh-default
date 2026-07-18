@@ -1,0 +1,24 @@
+#!/bin/sh
+
+# OpenSSH 配置文件
+SSHD_CONFIG="/etc/ssh/sshd_config"
+
+
+
+# 修改 PermitRootLogin
+
+# 删除已有 PermitRootLogin 配置
+sed -i '/^[[:space:]]*PermitRootLogin[[:space:]]*/d' "$SSHD_CONFIG"
+
+# 添加新的配置
+echo "PermitRootLogin yes" >> "$SSHD_CONFIG"
+
+
+
+
+
+# 重启 OpenSSH 服务
+/etc/init.d/sshd restart 2>/dev/null
+
+
+exit 0

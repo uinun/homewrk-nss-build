@@ -1,0 +1,45 @@
+#!/bin/sh
+
+# radio0 5G
+uci set wireless.radio0.channel='auto'
+uci set wireless.radio0.htmode='HE80'
+uci set wireless.radio0.txpower='23'
+uci set wireless.radio0.country='CN'
+
+
+uci set wireless.default_radio0.ssid='CMCC-rax5e'
+uci set wireless.default_radio0.encryption='sae-mixed'
+uci set wireless.default_radio0.key=''
+
+
+# radio1 2.4G
+uci set wireless.radio1.channel='auto'
+uci set wireless.radio1.htmode='HE40'
+uci set wireless.radio1.txpower='22'
+uci set wireless.radio1.country='CN'
+uci set wireless.radio1.disabled='1'
+
+
+uci set wireless.default_radio1.ssid='CMCC-rax2e'
+uci set wireless.default_radio1.encryption='sae-mixed'
+uci set wireless.default_radio1.key=''
+uci set wireless.default_radio1.disabled='1'
+
+
+# radio2 5G
+uci set wireless.radio2.channel='auto'
+uci set wireless.radio2.htmode='HE80'
+uci set wireless.radio2.txpower='22'
+uci set wireless.radio2.country='CN'
+uci set wireless.radio2.disabled='1'
+
+
+uci set wireless.default_radio2.ssid='CMCC-rax5e'
+uci set wireless.default_radio2.encryption='sae-mixed'
+uci set wireless.default_radio2.key=''
+uci set wireless.default_radio2.disabled='1'
+
+
+uci commit wireless
+
+exit 0

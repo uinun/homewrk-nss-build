@@ -1,0 +1,352 @@
+name: Build OpenWrt NSS-EDMA HomeWRK
+
+
+on:
+
+  workflow_dispatch:
+
+
+
+jobs:
+
+  build:
+
+
+    runs-on: ubuntu-24.04
+
+
+    env:
+
+      OPENWRT_DIR: openwrt-nss-edma
+
+
+
+    steps:
+
+
+    ##################################################
+    # 1. 获取自己的配置仓库
+    ##################################################
+
+    - name: Checkout repository
+
+      uses: actions/checkout@v4
+
+
+
+
+
+    ##################################################
+    # 2. 安装编译依赖
+    ##################################################
+
+    - name: Install build dependencies
+
+      run: |
+
+
+        sudo apt update
+
+
+        sudo apt install -y \
+          ack \
+          antlr3 \
+          asciidoc \
+          autoconf \
+          automake \
+          autopoint \
+          binutils \
+          bison \
+          build-essential \
+          bzip2 \
+          ccache \
+          cmake \
+          cpio \
+          curl \
+          device-tree-compiler \
+          fastjar \
+          flex \
+          gawk \
+          gettext \
+          gcc-multilib \
+          g++-multilib \
+          git \
+          gperf \
+          haveged \
+          help2man \
+          intltool \
+          libc6-dev-i386 \
+          libelf-dev \
+          libglib2.0-dev \
+          libgmp3-dev \
+          libltdl-dev \
+          libmpc-dev \
+          libmpfr-dev \
+          libncurses5-dev \
+          libncursesw5-dev \
+          libreadline-dev \
+          libssl-dev \
+          libtool \
+          lrzsz \
+          mkisofs \
+          msmtp \
+          nano \
+          ninja-build \
+          p7zip \
+          p7zip-full \
+          patch \
+          pkgconf \
+          python3 \
+          python3-pip \
+          python3-ply \
+          python3-docutils \
+          qemu-utils \
+          rsync \
+          srecord \
+          squashfs-tools \
+          subversion \
+          swig \
+          texinfo \
+          u-boot-tools \
+          upx-ucl \
+          unzip \
+          vim \
+          wget \
+          xmlto \
+          xz-utils \
+          zlib1g-dev
+
+
+
+
+
+
+    ##################################################
+    # 3. 每次重新拉取最新 NSS-EDMA源码
+    ##################################################
+
+    - name: Clone latest NSS-EDMA source
+
+      run: |
+
+
+        git clone \
+          -b nss-edma-rework \
+          https://github.com/JuliusBairaktaris/openwrt-nss-edma.git \
+          $OPENWRT_DIR
+
+
+
+
+
+    ##################################################
+    # 4. 添加最新 NSS feed
+    ##################################################
+
+    - name: Add NSS feed
+
+
+      working-directory: ${{ env.OPENWRT_DIR }}
+
+
+      run: |
+
+
+        cp feeds.conf.default feeds.conf
+
+
+        echo \
+        "src-git nss https://github.com/JuliusBairaktaris/nss-packages.git;edma-nss" \
+        >> feeds.conf
+
+
+
+
+
+    ##################################################
+    # 5. 更新 feeds
+
+    ##################################################
+
+    - name: Update and install feeds
+
+
+      working-directory: ${{ env.OPENWRT_DIR }}
+
+
+      run: |
+
+
+        ./scripts/feeds update -a
+
+
+        ./scripts/feeds install -a
+
+
+
+
+
+    ##################################################
+    # 6. 导入 HomeWRK 配置
+
+    ##################################################
+
+    - name: Apply HomeWRK diffconfig
+
+
+      run: |
+
+
+        cp homewrk-diffconfig \
+        $OPENWRT_DIR/.config
+
+
+
+
+
+
+    ##################################################
+    # 7. 加入首次启动配置
+
+    ##################################################
+
+    - name: Add uci defaults
+
+
+      run: |
+
+
+        mkdir -p \
+        $OPENWRT_DIR/files/etc/uci-defaults
+
+
+        cp files/etc/uci-defaults/* \
+        $OPENWRT_DIR/files/etc/uci-defaults/
+
+
+        chmod +x \
+        files/etc/uci-defaults/*
+
+
+
+
+
+    ##################################################
+    # 8. 生成完整配置
+
+    ##################################################
+
+    - name: Generate configuration
+
+
+      working-directory: ${{ env.OPENWRT_DIR }}
+
+
+      run: |
+
+
+        make defconfig
+
+
+
+
+
+    ##################################################
+    # 9. 检查关键配置
+
+    ##################################################
+
+    - name: Check configuration
+
+
+      working-directory: ${{ env.OPENWRT_DIR }}
+
+
+      run: |
+
+
+        echo "===== TARGET ====="
+
+        grep CONFIG_TARGET .config || true
+
+
+
+        echo "===== NSS ====="
+
+        grep -i nss .config || true
+
+
+
+        echo "===== OPENSSH ====="
+
+        grep openssh .config || true
+
+
+
+
+
+    ##################################################
+    # 10. 下载源码包
+
+    ##################################################
+
+    - name: Download sources
+
+
+      working-directory: ${{ env.OPENWRT_DIR }}
+
+
+      run: |
+
+
+        make download -j$(nproc)
+
+
+
+
+
+
+    ##################################################
+    # 11. 编译 HomeWRK 固件
+
+    ##################################################
+
+    - name: Build firmware
+
+
+      working-directory: ${{ env.OPENWRT_DIR }}
+
+
+      run: |
+
+
+        make -j4 V=s
+
+
+
+
+
+    ##################################################
+    # 12. 上传编译结果
+
+    ##################################################
+
+    - name: Upload firmware
+
+
+      uses: actions/upload-artifact@v4
+
+
+      with:
+
+
+        name: HomeWRK-NSS-EDMA-firmware
+
+
+        path: |
+
+
+          openwrt-nss-edma/bin/targets/ipq807x/**/*
+
+
+        retention-days: 30
