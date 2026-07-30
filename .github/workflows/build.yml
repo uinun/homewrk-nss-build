@@ -2,15 +2,12 @@ name: Build OpenWrt NSS-EDMA HomeWRK
 
 
 on:
-
   workflow_dispatch:
-
 
 
 jobs:
 
   build:
-
 
     runs-on: ubuntu-24.04
 
@@ -19,14 +16,15 @@ jobs:
 
       OPENWRT_DIR: openwrt-nss-edma
 
+      CCACHE_DIR: ~/.ccache
 
 
     steps:
 
 
-    ##################################################
-    # 1. 获取自己的配置仓库
-    ##################################################
+##################################################
+# 1. Checkout
+##################################################
 
     - name: Checkout repository
 
@@ -34,11 +32,26 @@ jobs:
 
 
 
+##################################################
+# 2. Free disk space
+##################################################
+
+    - name: Free disk space
+
+      run: |
+
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /usr/local/share/boost
+        sudo rm -rf /opt/ghc
+        sudo rm -rf /usr/share/dotnet
+
+        df -h
 
 
-    ##################################################
-    # 2. 安装编译依赖
-    ##################################################
+
+##################################################
+# 3. Install dependencies
+##################################################
 
     - name: Install build dependencies
 
@@ -49,83 +62,96 @@ jobs:
 
 
         sudo apt install -y \
-          ack \
-          antlr3 \
-          asciidoc \
-          autoconf \
-          automake \
-          autopoint \
-          binutils \
-          bison \
           build-essential \
-          bzip2 \
-          ccache \
-          cmake \
-          cpio \
-          curl \
-          device-tree-compiler \
-          fastjar \
+          clang \
           flex \
+          bison \
+          g++ \
           gawk \
-          gettext \
           gcc-multilib \
-          g++-multilib \
+          gettext \
           git \
-          gperf \
-          haveged \
-          help2man \
-          intltool \
-          libc6-dev-i386 \
-          libelf-dev \
-          libglib2.0-dev \
-          libgmp3-dev \
-          libltdl-dev \
-          libmpc-dev \
-          libmpfr-dev \
-          libncurses5-dev \
-          libncursesw5-dev \
-          libreadline-dev \
+          libncurses-dev \
           libssl-dev \
-          libtool \
-          lrzsz \
-          mkisofs \
-          msmtp \
-          nano \
-          ninja-build \
-          p7zip \
-          p7zip-full \
-          patch \
-          pkgconf \
           python3 \
           python3-pip \
-          python3-ply \
-          python3-docutils \
-          qemu-utils \
           rsync \
-          srecord \
-          squashfs-tools \
-          subversion \
-          swig \
-          texinfo \
-          u-boot-tools \
-          upx-ucl \
           unzip \
-          vim \
+          zlib1g-dev \
+          file \
           wget \
-          xmlto \
+          curl \
+          ccache \
+          patch \
+          perl \
+          tar \
           xz-utils \
-          zlib1g-dev
+          zstd
 
 
 
+##################################################
+# 4. Enable ccache
+##################################################
+
+    - name: Setup ccache
+
+      run: |
+
+
+        echo "CCACHE_DIR=$HOME/.ccache" >> $GITHUB_ENV
+
+
+        ccache --set-config=max_size=5G
+
+        ccache --zero-stats
 
 
 
-    ##################################################
-    # 3. 每次重新拉取最新 NSS-EDMA源码
-    ##################################################
+##################################################
+# 5. Cache OpenWrt
+##################################################
 
-    - name: Clone latest NSS-EDMA source
+    - name: Cache OpenWrt build
+
+      uses: actions/cache@v4
+
+
+      with:
+
+
+        path: |
+
+          ${{ env.OPENWRT_DIR }}/dl
+          ${{ env.OPENWRT_DIR }}/staging_dir
+          ${{ env.OPENWRT_DIR }}/build_dir
+          ~/.ccache
+
+
+        key: >
+
+          openwrt-homewrk-
+
+          ${{ runner.os }}-
+
+          ${{ hashFiles(
+          'homewrk-diffconfig',
+          'files/**'
+          ) }}
+
+
+        restore-keys: |
+
+          openwrt-homewrk-${{ runner.os }}-
+
+
+
+##################################################
+# 6. Clone NSS-EDMA source
+##################################################
+
+    - name: Clone NSS-EDMA source
+
 
       run: |
 
@@ -137,28 +163,11 @@ jobs:
 
 
 
-    # 增加缓存
-    - name: Cache OpenWrt build
-
-      uses: actions/cache@v4
-
-      with:
-
-        path: |
-          ${{ env.OPENWRT_DIR }}/dl
-          ${{ env.OPENWRT_DIR }}/staging_dir
-          ${{ env.OPENWRT_DIR }}/build_dir
-
-        key: openwrt-${{ runner.os }}-${{ hashFiles('homewrk-diffconfig', 'files/etc/uci-defaults/*') }}
-
-        restore-keys: |
-          openwrt-${{ runner.os }}-
 
 
-
-    ##################################################
-    # 4. 添加最新 NSS feed
-    ##################################################
+##################################################
+# 7. Add NSS feed
+##################################################
 
     - name: Add NSS feed
 
@@ -180,12 +189,11 @@ jobs:
 
 
 
-    ##################################################
-    # 5. 更新 feeds
+##################################################
+# 8. Update feeds
+##################################################
 
-    ##################################################
-
-    - name: Update and install feeds
+    - name: Update feeds
 
 
       working-directory: ${{ env.OPENWRT_DIR }}
@@ -203,10 +211,9 @@ jobs:
 
 
 
-    ##################################################
-    # 6. 导入 HomeWRK 配置
-
-    ##################################################
+##################################################
+# 9. Apply HomeWRK config
+##################################################
 
     - name: Apply HomeWRK diffconfig
 
@@ -221,37 +228,28 @@ jobs:
 
 
 
+##################################################
+# 10. Copy files overlay
+##################################################
 
-    ##################################################
-    # 7. 加入首次启动配置
-
-    ##################################################
-
-    - name: Add uci defaults
+    - name: Install custom files
 
 
       run: |
 
 
         mkdir -p \
-        $OPENWRT_DIR/files/etc/uci-defaults
+        $OPENWRT_DIR/files
 
 
-        cp files/etc/uci-defaults/* \
-        $OPENWRT_DIR/files/etc/uci-defaults/
-
-
-        chmod +x \
-        $OPENWRT_DIR/files/etc/uci-defaults/*
+        cp -a files/. \
+        $OPENWRT_DIR/files/
 
 
 
-
-
-    ##################################################
-    # 8. 生成完整配置
-
-    ##################################################
+##################################################
+# 11. Generate config
+##################################################
 
     - name: Generate configuration
 
@@ -268,12 +266,11 @@ jobs:
 
 
 
-    ##################################################
-    # 9. 检查关键配置
+##################################################
+# 12. Check configuration
+##################################################
 
-    ##################################################
-
-    - name: Check configuration
+    - name: Check NSS configuration
 
 
       working-directory: ${{ env.OPENWRT_DIR }}
@@ -284,28 +281,48 @@ jobs:
 
         echo "===== TARGET ====="
 
-        grep CONFIG_TARGET .config || true
+        grep CONFIG_TARGET .config | grep -E \
+        "qualcommax|ipq807x|homewrk"
 
 
+
+        echo
+
+        echo "===== ATH11K ====="
+
+        grep ath11k .config || true
+
+
+
+        echo
 
         echo "===== NSS ====="
 
-        grep -i nss .config || true
+        grep qca-nss .config || true
 
 
 
-        echo "===== OPENSSH ====="
+        echo
 
-        grep openssh .config || true
+        echo "===== ECM ====="
+
+        grep ecm .config || true
+
+
+
+        echo
+
+        echo "===== EDMA ====="
+
+        grep -i edma .config || true
 
 
 
 
 
-    ##################################################
-    # 10. 下载源码包
-
-    ##################################################
+##################################################
+# 13. Download sources
+##################################################
 
     - name: Download sources
 
@@ -316,17 +333,16 @@ jobs:
       run: |
 
 
-        make download -j$(nproc)
+        make download -j4 || \
+        make download -j1 V=s
 
 
 
 
 
-
-    ##################################################
-    # 11. 编译 HomeWRK 固件
-
-    ##################################################
+##################################################
+# 14. Build firmware
+##################################################
 
     - name: Build firmware
 
@@ -337,26 +353,48 @@ jobs:
       run: |
 
 
-        make -j$(nproc) V=s
+        make -j4 V=s
 
 
 
-    # 日志输出上传路径
-    - name: Show firmware files
+##################################################
+# 15. ccache statistics
+##################################################
 
-      working-directory: ${{ env.OPENWRT_DIR }}
+    - name: Show ccache
+
 
       run: |
 
-        echo "===== firmware output ====="
+
+        ccache --show-stats
+
+
+
+
+
+##################################################
+# 16. Show firmware
+##################################################
+
+    - name: Show firmware files
+
+
+      working-directory: ${{ env.OPENWRT_DIR }}
+
+
+      run: |
+
 
         find bin/targets -type f
 
 
-    ##################################################
-    # 12. 上传编译结果
 
-    ##################################################
+
+
+##################################################
+# 17. Upload firmware
+##################################################
 
     - name: Upload firmware
 
@@ -375,9 +413,9 @@ jobs:
 
           ${{ env.OPENWRT_DIR }}/bin/targets/**/*sysupgrade*
           ${{ env.OPENWRT_DIR }}/bin/targets/**/*factory*
-          ${{ env.OPENWRT_DIR }}/bin/targets/**/*sha256*
-          ${{ env.OPENWRT_DIR }}/bin/targets/**/*profiles*
           ${{ env.OPENWRT_DIR }}/bin/targets/**/*manifest*
+          ${{ env.OPENWRT_DIR }}/bin/targets/**/*profiles*
+          ${{ env.OPENWRT_DIR }}/bin/targets/**/*sha256*
           ${{ env.OPENWRT_DIR }}/bin/targets/**/*buildinfo*
 
 
@@ -385,3 +423,31 @@ jobs:
 
 
         retention-days: 30
+
+
+
+
+
+##################################################
+# 18. Upload logs if failed
+##################################################
+
+    - name: Upload failure logs
+
+
+      if: failure()
+
+
+      uses: actions/upload-artifact@v4
+
+
+      with:
+
+
+        name: HomeWRK-build-debug
+
+
+        path: |
+
+          ${{ env.OPENWRT_DIR }}/.config
+          ${{ env.OPENWRT_DIR }}/logs
