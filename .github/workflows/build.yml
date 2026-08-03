@@ -180,6 +180,8 @@ jobs:
 
         ./scripts/feeds install -a
 
+        ./scripts/feeds list -r nss | grep -q qca-nss-drv && echo "nss feed OK"
+
 
 
 ##################################################
